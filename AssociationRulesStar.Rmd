@@ -1,0 +1,395 @@
+---
+title: "AssociationRules"
+author: "trieutran"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Association rules
+Describe an application of association rules method. In other words, discuss how you can derive association rules and then apply them to a specific situation.
+
+*Answer:*
+One area where association rules method is in healthcare, specifically in medical diagnosis and treatment recommendation systems. In this field, association rules can be derived from patient medical records and treatment outcomes. The data collected might include patient demographics (age, gender, ethnicity), medical history (pre-existing conditions, family history), symptoms, diagnostic test results, prescribed medications, and treatment outcomes.  
+
+*Benefits:*  
+
+* Improved Diagnosis Accuracy: Association rules can help healthcare providers make more accurate diagnoses by identifying subtle patterns in patient data that might not be immediately apparent.
+* Personalized Treatment: By analyzing past treatment outcomes, association rules can enable personalized treatment recommendations tailored to individual patient characteristics, improving the effectiveness of healthcare interventions.
+* Resource Allocation: Healthcare organizations can use association rules to allocate resources more efficiently by identifying high-risk patient populations and targeting interventions where they are most needed.
+
+*Application:*  
+
+* Medical Diagnosis: Association rules can be used to aid physicians in diagnosing medical conditions by identifying patterns in patient data.
+* Treatment Recommendation: Association rules can assist healthcare providers in recommending appropriate treatments based on patient characteristics and medical history.  
+
+*Potential Itemset Content:* It could be information of patients’ demographic, symptoms, medical histories, treatments, etc.
+Example: Age: 45-60, Gender: Female, Pregnancies: 2, BloodPressure: 75, BMI: 35, Glucose: 148, Diagnosis: Diabetes Type 2.
+
+## Neural network
+### A. Describe the data set and provide a table with the learning rates, number of hidden layers and nodes per layer.  
+The dataset contains 7 columns and 3642 rows, each corresponding to a different star, provides information about a specific star’s properties such as magnitude, color index, spectral type, and classification. Data source: Kaggle.  
+*Column description:*  
+
+*	Vmag: Visual magnitude is a measure of the brightness of a star as seen from Earth, with smaller values indicating brighter stars.
+*	Plx: Parallax is a measurement technique used to determine the distance to nearby stars by observing their apparent shift in position as seen from different points in Earth’s orbit.
+*	e_Plx: The error in the parallax measurements.
+*	B_V: The B-V color index is a measure of a star's color, calculated as the difference in brightness between the B (blue) and V (visual) photometric bands.
+*	SpType: Spectral type is a classification system based on the characteristics of a star’s spectrum, including the presence and strength of absorption lines.
+*	Amag: Absolute magnitude is a measure of the intrinsic brightness of a star, defined as the apparent magnitude the star would have if it were located at a standard distance of 10 parsecs (about 32.6 light-years) from Earth.
+*	TargetClass: This column indicates the classification of the stars as either 0 or 1, presumably representing giants and dwarfs respectively.
+
+``` {r}
+#table with the learning rates, number of hidden layers and nodes per layer.
+experiment = seq(1:8)
+layer = c(1, 1, 2, 2, 1, 1, 2, 2)
+node =  c(2, 3, 2, 3, 2, 3, 2, 3)
+learning_rate = c(0.1, 0.1, 0.1, 0.1, 0.5, 0.5, 0.5, 0.5)
+
+q6_df <- data.frame(experiment, layer, node, learning_rate)
+q6_df
+```
+
+```{r message=FALSE}
+#load data and modify a column name
+library(readr)
+star <- read_csv("/Users/trieutlh/Library/CloudStorage/OneDrive-UW/Archive/TBANLT 560/final exam/data/Star3642_balanced.csv")
+colnames(star)[4] <- "B_V"
+```
+
+``` {r}
+head(star)
+summary(star)
+```
+
+``` {r}
+# partition  to create the training and validation
+set.seed(1)
+train.index <- sample(row.names(star), 0.6*dim(star)[1])  
+valid.index <- setdiff(row.names(star), train.index)  
+train.df <- star[train.index, ]
+valid.df <- star[valid.index, ]
+
+# normalize
+library(caret)
+norm.values <- preProcess(train.df, method="range")
+# generate the normalized training and validation 
+train.norm.df <- predict(norm.values, train.df)
+valid.norm.df <- predict(norm.values, valid.df)
+```
+
+``` {r message=FALSE}
+library(neuralnet)
+
+file_path <- "/Users/trieutlh/Library/CloudStorage/OneDrive-UW/Archive/TBANLT 560/final exam/figures/q6"
+#Experiment 1: 1 layer with 2 nodes, learning rate = 0.1
+nn <- neuralnet(TargetClass ~ Vmag+
+                  Plx+
+                  e_Plx+
+                  B_V+
+                  Amag, 
+                data = train.norm.df, linear.output = T, 
+                hidden = 2,
+                learningrate = 0.1,
+                stepmax=1e+06)
+q6_g1 <- plot(nn, rep = "best")
+
+ggsave(file=file.path(file_path, "q6_g1.png"),
+       q6_g1, width=5, height=8, units="in")
+
+#use compute function for nn to get the prediction
+training.prediction <- neuralnet::compute(nn, train.norm.df)
+
+#examine the result matrix
+nn$result.matrix
+
+#predictions on validation data
+validation.prediction=neuralnet::compute(nn, valid.norm.df)
+
+#table(unlist(validation.prediction))
+#plot.new()
+hist(unlist(validation.prediction))
+
+library(forecast)
+#prediction error of training data
+q6_result_1t <- round(accuracy(unlist(training.prediction), train.norm.df$TargetClass),4)
+#prediction error of validation data
+q6_result_1v <- round(accuracy(unlist(validation.prediction), valid.norm.df$TargetClass),4)
+```
+
+``` {r}
+#Experiment 2: 1 layer with 3 nodes, learning rate = 0.1
+nn <- neuralnet(TargetClass ~ Vmag+
+                  Plx+
+                  e_Plx+
+                  B_V+
+                  Amag, 
+                data = train.norm.df, linear.output = T, 
+                hidden = 3,
+                learningrate = 0.1,
+                stepmax=1e+06)
+q6_g2 <- plot(nn, rep = "best")
+
+ggsave(file=file.path(file_path, "q6_g2.png"),
+       q6_g2, width=5, height=8, units="in")
+#use compute function for nn to get the prediction
+training.prediction <- neuralnet::compute(nn, train.norm.df)
+
+#examine the result matrix
+nn$result.matrix
+
+#predictions on validation data
+validation.prediction=neuralnet::compute(nn, valid.norm.df)
+
+#table(unlist(validation.prediction))
+#plot.new()
+hist(unlist(validation.prediction))
+
+library(forecast)
+#prediction error of training data
+q6_result_2t <- round(accuracy(unlist(training.prediction), train.norm.df$TargetClass),4)
+#prediction error of validation data
+q6_result_2v <- round(accuracy(unlist(validation.prediction), valid.norm.df$TargetClass),4)
+```
+
+``` {r}
+#Experiment 3: 2 layers with 2 nodes each layer, learning rate = 0.1
+nn <- neuralnet(TargetClass ~ Vmag+
+                  Plx+
+                  e_Plx+
+                  B_V+
+                  Amag, 
+                data = train.norm.df, linear.output = F, 
+                hidden = c(2,2),
+                learningrate = 0.1,
+                stepmax=1e+06)
+q6_g3 <- plot(nn, rep = "best")
+
+ggsave(file=file.path(file_path, "q6_g3.png"),
+       q6_g3, width=5, height=8, units="in")
+#use compute function for nn to get the prediction
+training.prediction <- neuralnet::compute(nn, train.norm.df)
+
+#examine the result matrix
+nn$result.matrix
+
+#predictions on validation data
+validation.prediction=neuralnet::compute(nn, valid.norm.df)
+
+#table(unlist(validation.prediction))
+#plot.new()
+hist(unlist(validation.prediction))
+
+library(forecast)
+#prediction error of training data
+q6_result_3t <- round(accuracy(unlist(training.prediction), train.norm.df$TargetClass),4)
+#prediction error of validation data
+q6_result_3v <- round(accuracy(unlist(validation.prediction), valid.norm.df$TargetClass),4)
+```
+
+``` {r}
+#Experiment 4: 2 layers with 3 nodes each layer, learning rate = 0.1
+nn <- neuralnet(TargetClass ~ Vmag+
+                  Plx+
+                  e_Plx+
+                  B_V+
+                  Amag, 
+                data = train.norm.df, linear.output = T, 
+                hidden = c(3,3),
+                learningrate = 0.1,
+                stepmax=1e+06)
+q6_g4 <- plot(nn, rep = "best")
+
+ggsave(file=file.path(file_path, "q6_g4.png"),
+       q6_g4, width=5, height=8, units="in")
+#use compute function for nn to get the prediction
+training.prediction <- neuralnet::compute(nn, train.norm.df)
+
+#examine the result matrix
+nn$result.matrix
+
+#predictions on validation data
+validation.prediction=neuralnet::compute(nn, valid.norm.df)
+
+#table(unlist(validation.prediction))
+#plot.new()
+hist(unlist(validation.prediction))
+
+library(forecast)
+#prediction error of training data
+q6_result_4t <- round(accuracy(unlist(training.prediction), train.norm.df$TargetClass),4)
+#prediction error of validation data
+q6_result_4v <- round(accuracy(unlist(validation.prediction), valid.norm.df$TargetClass),4)
+```
+
+``` {r}
+#Experiment 5: 1 layer with 2 nodes, learning rate = 0.5
+nn <- neuralnet(TargetClass ~ Vmag+
+                  Plx+
+                  e_Plx+
+                  B_V+
+                  Amag, 
+                data = train.norm.df, linear.output = T, 
+                hidden = 2,
+                learningrate = 0.5)
+q6_g5 <- plot(nn, rep = "best")
+
+ggsave(file=file.path(file_path, "q6_g5.png"),
+       q6_g5, width=5, height=8, units="in")
+
+#use compute function for nn to get the prediction
+training.prediction <- neuralnet::compute(nn, train.norm.df)
+
+#examine the result matrix
+nn$result.matrix
+
+#predictions on validation data
+validation.prediction=neuralnet::compute(nn, valid.norm.df)
+
+#table(unlist(validation.prediction))
+#plot.new()
+hist(unlist(validation.prediction))
+
+library(forecast)
+#prediction error of training data
+q6_result_5t <- round(accuracy(unlist(training.prediction), train.norm.df$TargetClass),4)
+#prediction error of validation data
+q6_result_5v <- round(accuracy(unlist(validation.prediction), valid.norm.df$TargetClass),4)
+```
+
+``` {r}
+#Experiment 6: 1 layer with 3 nodes, learning rate = 0.5
+nn <- neuralnet(TargetClass ~ Vmag+
+                  Plx+
+                  e_Plx+
+                  B_V+
+                  Amag, 
+                data = train.norm.df, linear.output = T, 
+                hidden = 3,
+                learningrate = 0.5,
+                stepmax=1e+06)
+q6_g6 <- plot(nn, rep = "best")
+
+ggsave(file=file.path(file_path, "q6_g6.png"),
+       q6_g6, width=5, height=8, units="in")
+#use compute function for nn to get the prediction
+training.prediction <- neuralnet::compute(nn, train.norm.df)
+
+#examine the result matrix
+nn$result.matrix
+
+#predictions on validation data
+validation.prediction=neuralnet::compute(nn, valid.norm.df)
+
+#table(unlist(validation.prediction))
+#plot.new()
+hist(unlist(validation.prediction))
+
+library(forecast)
+#prediction error of training data
+q6_result_6t <- round(accuracy(unlist(training.prediction), train.norm.df$TargetClass),4)
+#prediction error of validation data
+q6_result_6v <- round(accuracy(unlist(validation.prediction), valid.norm.df$TargetClass),4)
+```
+
+``` {r}
+#Experiment 7: 2 layers with 2 nodes each layer, learning rate = 0.5
+nn <- neuralnet(TargetClass ~ Vmag+
+                  Plx+
+                  e_Plx+
+                  B_V+
+                  Amag, 
+                data = train.norm.df, linear.output = T, 
+                hidden = c(2,2),
+                learningrate = 0.5,
+                stepmax=1e+06)
+q6_g7 <- plot(nn, rep = "best")
+
+ggsave(file=file.path(file_path, "q6_g7.png"),
+       q6_g7, width=5, height=8, units="in")
+#use compute function for nn to get the prediction
+training.prediction <- neuralnet::compute(nn, train.norm.df)
+
+#examine the result matrix
+nn$result.matrix
+
+#predictions on validation data
+validation.prediction=neuralnet::compute(nn, valid.norm.df)
+
+#table(unlist(validation.prediction))
+#plot.new()
+hist(unlist(validation.prediction))
+
+library(forecast)
+#prediction error of training data
+q6_result_7t <- round(accuracy(unlist(training.prediction), train.norm.df$TargetClass),4)
+#prediction error of validation data
+q6_result_7v <- round(accuracy(unlist(validation.prediction), valid.norm.df$TargetClass),4)
+```
+
+``` {r}
+#Experiment 8: 2 layers with 3 nodes each layer, learning rate = 0.5
+nn <- neuralnet(TargetClass ~ Vmag+
+                  Plx+
+                  e_Plx+
+                  B_V+
+                  Amag, 
+                data = train.norm.df, linear.output = T, 
+                hidden = c(3,3),
+                learningrate = 0.5,
+                stepmax=1e+06)
+q6_g8 <- plot(nn, rep = "best")
+
+ggsave(file=file.path(file_path, "q6_g8.png"),
+       q6_g8, width=5, height=8, units="in")
+#use compute function for nn to get the prediction
+training.prediction <- neuralnet::compute(nn, train.norm.df)
+
+#examine the result matrix
+nn$result.matrix
+
+#predictions on validation data
+validation.prediction=neuralnet::compute(nn, valid.norm.df)
+
+#table(unlist(validation.prediction))
+#plot.new()
+hist(unlist(validation.prediction))
+
+library(forecast)
+#prediction error of training data
+q6_result_8t <- round(accuracy(unlist(training.prediction), train.norm.df$TargetClass),4)
+#prediction error of validation data
+q6_result_8v <- round(accuracy(unlist(validation.prediction), valid.norm.df$TargetClass),4)
+```
+
+### B. Results
+```{r}
+experiment_number <- c(1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8)
+train_valid <- c("train", "valid")
+q6_c <- as.data.frame(cbind(experiment_number, train_valid, rbind(q6_result_1t,
+                                                          q6_result_1v,
+                                                          q6_result_2t,
+                                                          q6_result_2v,
+                                                          q6_result_3t,
+                                                          q6_result_3v,
+                                                          q6_result_4t,
+                                                          q6_result_4v,
+                                                          q6_result_5t,
+                                                          q6_result_5v,
+                                                          q6_result_6t,
+                                                          q6_result_6v,
+                                                          q6_result_7t,
+                                                          q6_result_7v,
+                                                          q6_result_8t,
+                                                          q6_result_8v
+)))
+rownames(q6_c) <- NULL
+q6_c
+```
+
+### C. Compare the results and discuss the outcomes:  
+From the result table, it seems like there are no significant differences in performance across different architectures and learning rates. Therefore, in this case, the choice of network architecture and learning rate may not have a substantial impact on the model's performance.
